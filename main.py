@@ -11,16 +11,16 @@ from models.mobileViT import MobileViT
 tf.get_logger().setLevel('ERROR')
 
 def create_model(
-        config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s', 'vgg16', 'vgg19', 'resnet50', 'resnet101', 'vit'],
-        image_size: int,
-        image_channels: int,
-        num_classes: int,
-        dropout: float,
-        vit_patch_size: int | None = None,
-        vit_dim: int | None = None,
-        vit_depth: int | None = None,
-        vit_num_heads: int | None = None,
-        vit_mlp_dim: int | None = None,
+    config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s', 'vgg16', 'vgg19', 'resnet50', 'resnet101', 'vit'],
+    image_size: int,
+    image_channels: int,
+    num_classes: int,
+    dropout: float,
+    vit_patch_size: int | None = None,
+    vit_dim: int | None = None,
+    vit_depth: int | None = None,
+    vit_num_heads: int | None = None,
+    vit_mlp_dim: int | None = None,
 ):
     """
     Create model.

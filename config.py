@@ -1,11 +1,11 @@
 from typing import Literal
 
 def get_mobilevit_config(
-        config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s'], 
-        num_classes: int , 
-        image_size: int | None = 224, 
-        image_channels: int | None = 3,
-        dropout: float | None = 0.5
+    config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s'], 
+    num_classes: int , 
+    image_size: int | None = 224, 
+    image_channels: int | None = 3,
+    dropout: float | None = 0.5
 ):
     """
     Get config for MobileVit.

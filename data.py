@@ -32,9 +32,9 @@ class DataLoader():
     labels_test: np.ndarray | None
 
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int] | None = 224, 
-            ratio: float | None = 0.75
+        self, 
+        image_size: int | Tuple[int, int, int] | None = 224, 
+        ratio: float | None = 0.75
     ):
         """
         Initialize the model.
