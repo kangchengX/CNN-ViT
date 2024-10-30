@@ -7,6 +7,7 @@ from config import get_mobilevit_config
 from data import DataLoader
 from models.models import VGG, ResNet, ViT
 from models.mobileViT import MobileViT
+from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, balanced_accuracy_score
 
 tf.get_logger().setLevel('ERROR')
 
@@ -175,7 +176,16 @@ if __name__ == '__main__':
     train_losses = history.history['loss']
 
     print('-'*10 + 'test' + '-'*10)
-    test_loss, test_accuracy = model.evaluate(data_loader.images_test, data_loader.labels_test)
+    y_pred_probs = model.predict(data_loader.images_test)
+    y_pred = tf.argmax(y_pred_probs, axis=1).numpy()
+    y_true = data_loader.labels_test
+
+    test_loss = tf.keras.losses.SparseCategoricalCrossentropy()(y_true, y_pred_probs).numpy()
+    test_accuracy = accuracy_score(y_true, y_pred)
+    test_weighted_accuracy = balanced_accuracy_score(y_true, y_pred)
+    test_f1_score = f1_score(y_true, y_pred, average='macro')
+    test_confidence_score = np.mean(np.max(y_pred_probs, axis=1))
+    test_confusion_matrix = confusion_matrix(y_true, y_pred)
 
     num_trainable_params = sum([tf.size(v).numpy() for v in model.trainable_weights])
 
@@ -189,7 +199,11 @@ if __name__ == '__main__':
             'train_losses' : train_losses, 
             'train_accuracies' : train_accuracies, 
             'test_loss' : test_loss, 
-            'test_accuracy' : test_accuracy
+            'test_accuracy' : test_accuracy,
+            'test_weighted_accuracy' : test_weighted_accuracy,
+            'test_f1_score' : test_f1_score,
+            'test_confidence_score' : test_confidence_score,
+            'test_confusion_matrix' : test_confusion_matrix.tolist()
         }
         with open(file_path, 'w') as f:
             json.dump(results, f, cls=Encoder, indent=4)
