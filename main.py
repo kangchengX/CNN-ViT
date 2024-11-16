@@ -1,4 +1,5 @@
-import argparse, os, json
+import argparse, os, json, warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Filter out INFO and WARNING messages.
 import tensorflow as tf
 import pandas as pd
 import numpy as np
@@ -9,7 +10,6 @@ from models.models import VGG, ResNet, ViT
 from models.mobileViT import MobileViT
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, balanced_accuracy_score
 
-tf.get_logger().setLevel('ERROR')
 
 def create_model(
     config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s', 'vgg16', 'vgg19', 'resnet50', 'resnet101', 'vit'],
@@ -95,6 +95,7 @@ class Encoder(json.JSONEncoder):
             return super().default(obj)
         
 if __name__ == '__main__':
+
     parser = argparse.ArgumentParser()
 
     # model structure related
@@ -120,14 +121,15 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', type=float, default=1e-2, help='Learning rate. Default to 0.01.')
 
     # results saving related
-    parser.add_argument('--results_filename', type=str, help='Path to save the results.')
+    parser.add_argument('--results_filename', type=str, default='results', help='Path to save the results. \
+                        The extension in the input string will be ignored, and is automatically managed. \
+                        If the model is a vit model, the extension is .csv. If not, the extension is .json.')
 
     args = parser.parse_args()
 
     # load results file
     root, _ = os.path.splitext(args.results_filename)
     file_path = root + '.csv' if args.config_arch == 'vit' else root + '.json'
-
     if os.path.exists(file_path):
         if args.config_arch == 'vit':
             results = pd.read_csv(file_path)
@@ -149,12 +151,11 @@ if __name__ == '__main__':
             ]
         ) if args.config_arch == 'vit' else {}
 
-
     # load data
     data_loader = DataLoader(args.image_size, ratio=args.split_ratio)
     data_loader.load(args.data_folder, shuffle=args.shuffle_images)
     
-    # model training and test
+    # model training
     model = create_model(
         args.config_arch, 
         image_size=args.image_size, 
@@ -169,13 +170,14 @@ if __name__ == '__main__':
     )
 
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.learning_rate), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    print('-'*10 + 'train' + '-'*10)
+    print('-'*40 + 'train' + '-'*40)
     history = model.fit(data_loader.images_train, data_loader.labels_train, epochs=args.num_epochs, batch_size=args.batch_size)
 
     train_accuracies = history.history['accuracy']
     train_losses = history.history['loss']
 
-    print('-'*10 + 'test' + '-'*10)
+    # model test
+    print('-'*40 + 'test' + '-'*40)
     y_pred_probs = model.predict(data_loader.images_test)
     y_pred = tf.argmax(y_pred_probs, axis=1).numpy()
     y_true = data_loader.labels_test
@@ -194,6 +196,8 @@ if __name__ == '__main__':
         results.loc[len(results)] = [args.vit_dim, args.vit_depth, args.vit_num_heads, args.learning_rate, args.batch_size, num_trainable_params, train_losses[-1], train_accuracies[-1], test_loss, test_accuracy]
         results.to_csv(file_path, index=False)
     else:
+        if args.config_arch in results:
+            warnings.warn(f"The model architecture {args.config_arch} has been examined before. The results will be overwritten.")
         results[args.config_arch] = {
             'num_trainable_params' : num_trainable_params, 
             'train_losses' : train_losses, 
