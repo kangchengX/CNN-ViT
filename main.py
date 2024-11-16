@@ -9,6 +9,7 @@ from data import DataLoader
 from models.models import VGG, ResNet, ViT
 from models.mobileViT import MobileViT
 from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, balanced_accuracy_score
+tf.get_logger().setLevel('ERROR') # Filter out "WARNING:tensorflow:"
 
 
 def create_model(
@@ -113,7 +114,7 @@ if __name__ == '__main__':
     # data related
     parser.add_argument('--split_ratio', type=float, default=0.75, help='Ratio of the training set in the whole dataset.')
     parser.add_argument('--data_folder', type=str, default='data', help='Folder containing the data.')
-    parser.add_argument('--shuffle_images', action='store_true', help='Inidcates if to shuffle the dataset.')
+    parser.add_argument('--not_shuffle', action='store_false', help='Not to shuffle the dataset.')
 
     # training related
     parser.add_argument('--num_epochs', type=int, default=20, help='Number of epochs. Default to 20.')
@@ -153,7 +154,7 @@ if __name__ == '__main__':
 
     # load data
     data_loader = DataLoader(args.image_size, ratio=args.split_ratio)
-    data_loader.load(args.data_folder, shuffle=args.shuffle_images)
+    data_loader.load(args.data_folder, shuffle=args.not_shuffle)
     
     # model training
     model = create_model(
