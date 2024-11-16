@@ -15,7 +15,7 @@
 </p>
 
 <br>
-<details>
+<details open>
   <summary>Table of Contents</summary><br>
 
 - [Overview](#overview)
@@ -45,7 +45,6 @@ This project implements ViT and MobileViT from scratch, both of with are compati
 
 ```sh
 └── CNN-ViT/
-    ├── __init__.py
     ├── config.py
     ├── data.py
     ├── experiments.py
@@ -145,14 +144,16 @@ Run [experiments.py](experiments.py).
 <h4>From <code>source</code></h4>
 
 > ```console
-> $ python main.py [OPTIONS]
+> $ python main.py [config_arch] [OPTIONS]
 > ```
 
 **Command Line Arguments**:
 
-| Option | Type | Description | Default Value |
+| Argument | Type | Description | Default Value |
 |--------|------|-------------|---------------|
-| `--config_arch`    | String | Architecture of the model. Value should be `mobilevit_xxs`, `mobilevit_xs`, `mobilevit_s`, `vgg16`, `vgg19`, `resnet50`, `resnet101`, or `vit`. | `None` |
+|**Positional** |      |             |               |
+| `config_arch`     | String | Architecture of the model. Value should be `mobilevit_xxs`, `mobilevit_xs`, `mobilevit_s`, `vgg16`, `vgg19`, `resnet50`, `resnet101`, or `vit`. | N/A |
+|**Option** |      |             |               |
 | `--image_size`     | Integer | Height or width of the input image. | `224` |
 | `--image_channels` | Integer | Channels of the input image. | `3` |
 | `--dropout`        | Float   | Patch size for the Vision Transformer. | `2` |
@@ -162,15 +163,15 @@ Run [experiments.py](experiments.py).
 | `--vit_mlp_dim`    | Integer | Dimension of the MLP hidden layer in the Vision Transformer. | `1536` |
 | `--split_ratio`    | Float   | Ratio of the training set in the whole dataset. | `0.75` |
 | `--data_folder`    | String  | Folder containing the data.  | `data` |
-| `--shuffle_images` | Boolean | Indicates if to shuffle the dataset. (Set to `True` if present) | `False` |
+| `--not_shuffle`    | Boolean | Indicates if to shuffle the dataset. (Set to `Flase` if present) | `True` |
 | `--num_epochs`     | Integer | Number of epochs. | `20` |
 | `--batch_size`     | Integer | Batch size. | `16` |
 | `--learning_rate`  | Float | Learning rate. | `0.01` |
-| `--results_filename`| String | Path to save the results. | `None` |
+| `--results_filename`| String | Path to save the results. | `results` |
 
 **Example**:
 ```console
-$ python main.py --config_arch resnet50 --shuffle_images --results_filename results.json
+$ python main.py resnet50 --results_filename results
 ``` 
 
 [**Return**](#overview)

@@ -124,7 +124,8 @@ if __name__ == '__main__':
     # results saving related
     parser.add_argument('--results_filename', type=str, default='results', help='Path to save the results. \
                         The extension in the input string will be ignored, and is automatically managed. \
-                        If the model is a vit model, the extension is .csv. If not, the extension is .json.')
+                        If the model is a vit model, the extension is .csv. If not, the extension is .json.\
+                        Default to results')
 
     args = parser.parse_args()
 
