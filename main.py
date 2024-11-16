@@ -100,7 +100,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # model structure related
-    parser.add_argument('--config_arch', type=str, help='Architecture of the model. \
+    parser.add_argument('config_arch', type=str, help='Architecture of the model. \
                         Value shoud be mobilevit_xxs, mobilevit_xs, mobilevit_s, vgg16, vgg19, resnet50, resnet101 or vit.')
     parser.add_argument('--image_size', type=int, default=224, help='Height or width of the input image. Default to 224.')
     parser.add_argument('--image_channels', type=int, default=3, help='Channels of the input image. Default to 3.')

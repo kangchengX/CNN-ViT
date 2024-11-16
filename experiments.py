@@ -1,5 +1,6 @@
 import subprocess, os, warnings
 
+
 if __name__ == '__main__':
 
     results_folder = 'results'
@@ -13,8 +14,7 @@ if __name__ == '__main__':
 
     for config_arch in config_archs:
         command = [
-            'python', 'main.py',
-            '--config_arch', config_arch,
+            'python', 'main.py', config_arch,
             '--results_filename', os.path.join(results_folder, 'results_not_vit'),
             '--num_epochs', '1',
             '--image_size', '32'
@@ -30,8 +30,7 @@ if __name__ == '__main__':
         for vit_depth_heads in vit_depth_heads_list:
             for batch_size in batch_sizes:
                 command = [
-                    'python', 'main.py',
-                    '--config_arch', 'vit',
+                    'python', 'main.py', 'vit',
                     '--results_filename', os.path.join(results_folder, 'results_vit'),
                     '--vit_depth', f'{vit_depth_heads[0]}',
                     '--vit_num_heads', f'{vit_depth_heads[1]}',
