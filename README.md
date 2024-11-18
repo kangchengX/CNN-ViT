@@ -107,7 +107,7 @@ The data used in this project is collected from Palace Museum, Taipei, which con
 
 **System Requirements:**
 
-* **Python**: `3.12.2`
+* **Python**: `3.10.4`
 
 ### Installation
 
