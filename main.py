@@ -95,7 +95,7 @@ class Encoder(json.JSONEncoder):
         else:
             return super().default(obj)
         
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser()
 
@@ -213,4 +213,7 @@ if __name__ == '__main__':
         }
         with open(file_path, 'w') as f:
             json.dump(results, f, cls=Encoder, indent=4)
-    
+
+
+if __name__ == '__main__':
+    main()
