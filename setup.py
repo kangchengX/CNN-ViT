@@ -22,5 +22,5 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/kangchengX/CNN-ViT/tree/clt',
-    python_requires='==3.10.4',
+    python_requires='>=3.10,<3.11',
 )

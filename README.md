@@ -2,13 +2,14 @@
     <h1 align="center">CNN-VIT</h1>
 </p>
 <p align="center">
-    <em>Comparison of CNN and ViT on a small data set.</em>
+    <em>CLT of CNN and ViT on a small data set.</em>
 </p>
 <p align="center">
 		<em>Developed with the software and tools below.</em>
 </p>
 <p align="center">
 	<img src="https://img.shields.io/badge/TensorFlow-FF6F00.svg?style=default&logo=TensorFlow&logoColor=white" alt="TensorFlow">
+	<img src="https://img.shields.io/badge/scikit--learn-F7931E.svg?style=flat&logo=scikit-learn&logoColor=white" alt="scikit-learn">
 	<img src="https://img.shields.io/badge/Python-3776AB.svg?style=default&logo=Python&logoColor=white" alt="Python">
 	<img src="https://img.shields.io/badge/pandas-150458.svg?style=default&logo=pandas&logoColor=white" alt="pandas">
 	<img src="https://img.shields.io/badge/NumPy-013243.svg?style=default&logo=NumPy&logoColor=white" alt="NumPy">
@@ -35,7 +36,7 @@
 
 ##  Overview
 
-The CNN-ViT project compares multiple cnn and transformer-based models including VGG, ResNet, ViT and MobileViT on a small data set with 2 thousand images. We found that 1, ViT models' performance on this small data set is bad, even no more than 50%, whatever the structure is; 2, MobileViT could achieve similar accuracies but with only 10% around parameters compared with CNN models. 
+This repo is a command line tool for image classification, with models VGG, ResNet, ViT, and MobileViT.
 
 This project implements ViT and MobileViT from scratch, both of with are compatible with **graph execution mode** in tensorflow.
 
@@ -45,15 +46,22 @@ This project implements ViT and MobileViT from scratch, both of with are compati
 
 ```sh
 └── CNN-ViT/
+    └── data/
+        ├── CQ
+        │   ├── cq0.jpg
+        │   ├── cq1.jpg
+        │   └── ...
+        ├── OTQ
+        └── TQ
     ├── config.py
     ├── data.py
-    ├── experiments.py
     ├── main.py
     ├── models
     │   ├── __init__.py
     │   ├── mobileViT.py
     │   └── models.py
-    └── requirements.txt
+    ├── requirements.txt
+    └── setup.py
 ```
 ---
 
@@ -73,8 +81,10 @@ The data folder needs to have the following structure and puts in the project fo
 ```
 , i.e., the `data` folder has child folders with class names as names, each of which contains the images of the correponding class.
 
+Some example images have already been placed in this folder.
+
 ### Data Sources
-The data used in this project is collected from Palace Museum, Taipei, which contains 4 classes with 2000 around images of cultural relics.
+These example images data used in this project is collected from Palace Museum, Taipei, which contains 4 classes with 2000 around images of cultural relics.
 
 ---
 
@@ -86,9 +96,9 @@ The data used in this project is collected from Palace Museum, Taipei, which con
 | ---                                  | --- |
 | [config.py](config.py)               | Defines configurations for different architectures of the MobileViT model, allowing customization of parameters such as number of classes, image size, and dropout rates to adapt to various image classification tasks within the CNN-ViT projects architecture.                                                                              |
 | [data.py](data.py)                   | DataLoader in CNN-ViT manages image dataset preprocessing by loading, normalizing, and partitioning data into training and testing sets, supporting image resizing and format adjustments for model compatibility, and including functionality for data shuffling.                                |
-| [experiments.py](experiments.py)     | `experiments.py` studied two group of experients  - 1, Classification performance of VGG, ResNet and MobileViT with different architectures on the data set. 2, Classification performave of ViT with different architectures on this small data set. This scirpt handles configuration setup, execution, and result storage.                                         |
 | [main.py](main.py)                   | `main.py` orchestrates the model training and evaluation pipeline including configuration, data loading, training, and evaluation of various neural network models including MobileViT, VGG, ResNet, and Vision Transformer.           |
 | [requirements.txt](requirements.txt) | Contains the depandencies of the project.|
+| [setup.py](setup.py)     | Some setup for this command line tool.|
 
 </details>
 
@@ -113,38 +123,54 @@ The data used in this project is collected from Palace Museum, Taipei, which con
 
 <h4>From <code>source</code></h4>
 
-> 1. Clone the repository:
+> 1. Create a virtual environment:
 >
+> Windows:
 > ```console
-> $ git clone https://github.com/kangchengX/CNN-ViT.git
+> py -3.10 -m venv cnn-vit-venv
+> cnn-vit-venv\Scripts\activate
 > ```
 >
-> 2. Change to the project directory:
+> Linux:
 > ```console
-> $ cd CNN-ViT
+> python3.10 -m venv cnn-vit-venv
+> source cnn-vit-venv/bin/activate
 > ```
 >
-> 3. Install the dependencies:
+> 2. Clone the repository:
+>
 > ```console
-> $ pip install -r requirements.txt
+> git clone -b clt https://github.com/kangchengX/CNN-ViT.git
+> ```
+>
+> 3. Change to the project directory:
+> ```console
+> cd CNN-ViT
+> ```
+>
+> 4. Install the dependencies:
+> ```console
+> pip install -r requirements.txt
+> ```
+>
+> 5. Build CLT:
+> ```console
+> python setup.py develop
 > ```
 
 ### Data
 
-Put the data folder with the structure described in the above section [Data](#data).
+Put the data folder with the structure described in the above section [Data](#data). Some example images are already placed in the `data` folder.
 
 ###  Usage
 
-#### Run all the experiments
-
-Run [experiments.py](experiments.py).
-
-#### Run the single pipeline
-
-<h4>From <code>source</code></h4>
-
 > ```console
-> $ python main.py [config_arch] [OPTIONS]
+> cnn-vit [config_arch] [OPTIONS]
+> ```
+
+**For help**:
+> ```console
+> cnn-vit --help
 > ```
 
 **Command Line Arguments**:
@@ -170,9 +196,9 @@ Run [experiments.py](experiments.py).
 | `--results_filename`| String | Path to save the results. | `results` |
 
 **Example**:
-```console
-$ python main.py resnet50 --results_filename results
-``` 
+> ```console
+> cnn-vit resnet50 --results_filename results
+> ``` 
 
 [**Return**](#overview)
 
