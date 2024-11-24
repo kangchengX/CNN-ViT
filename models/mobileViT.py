@@ -278,7 +278,8 @@ class MobileViT(Model):
         image_size: int,
         expansion_factor: int | None = 2,
         patch_size: int | None = 2,
-        dropout: float | None = 0.5
+        dropout: float | None = 0.5,
+        last_conv_expansion_factor: int | None = 4
     ):
         """
         Initialize the model.
@@ -293,7 +294,8 @@ class MobileViT(Model):
             image_size (int): image_size = image_height = image_width.
             expansion_factor: expansion_factor in the inverted resudual block.
             patch_size (int): patch_size = patch_height = path_width.
-            dropout: dropout rate in the mlp.
+            dropout (float): dropout rate in the mlp.
+            last_conv_expansion_factor (int): expansion factor for channels in the last convolutional layer.
         """
         super(MobileViT, self).__init__()
         self.conv3x3 = layers.Conv2D(filters=channels[0], kernel_size=3, strides=2, activation=tf.nn.swish, padding="same")
@@ -335,7 +337,7 @@ class MobileViT(Model):
             dropout=dropout
         )
 
-        self.conv1x1 = layers.Conv2D(filters=channels[0], kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.conv1x1 = layers.Conv2D(filters=last_conv_expansion_factor * channels[7], kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
         self.global_avg_pool = layers.GlobalAvgPool2D()
         self.classifier = layers.Dense(num_classes, activation="softmax")
 
