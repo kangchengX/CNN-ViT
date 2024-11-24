@@ -1,5 +1,6 @@
 from typing import Literal
 
+
 def get_mobilevit_config(
     config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s'], 
     num_classes: int , 
@@ -53,4 +54,15 @@ def get_mobilevit_config(
             'dropout' : dropout
         }
 
+    return config
+
+
+def get_resnet_convblock_config(config_arch: Literal['resnet18', 'resnet34']):
+    if config_arch == 'resnet18':
+        config = [(64, 2), (128, 2), (256, 2), (512, 2)]
+    elif config_arch == 'resnet34':
+        config = [(64, 3), (128, 4), (256, 6), (512, 3)]
+    else:
+        raise ValueError(f"Unknown config arch {config_arch}")
+    
     return config

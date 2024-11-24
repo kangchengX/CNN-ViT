@@ -4,7 +4,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 from typing import Literal
-from config import get_mobilevit_config
+from config import get_mobilevit_config, get_resnet_convblock_config
 from data import DataLoader
 from models.models import VGG, ResNet, ViT
 from models.mobileViT import MobileViT
@@ -13,7 +13,18 @@ tf.get_logger().setLevel('ERROR') # Filter out "WARNING:tensorflow:"
 
 
 def create_model(
-    config_arch: Literal['mobilevit_xxs', 'mobilevit_xs', 'mobilevit_s', 'vgg16', 'vgg19', 'resnet50', 'resnet101', 'vit'],
+    config_arch: Literal[
+        'mobilevit_xxs', 
+        'mobilevit_xs', 
+        'mobilevit_s', 
+        'vgg16', 
+        'vgg19', 
+        'resnet18',
+        'resnet32',
+        'resnet50', 
+        'resnet101', 
+        'vit'
+    ],
     image_size: int,
     image_channels: int,
     num_classes: int,
@@ -59,6 +70,12 @@ def create_model(
             num_classes=num_classes,
             dropout=dropout
         )
+    elif config_arch in ['resnet18', 'resnet34']:
+        model = ResNet(
+            config_arch=get_resnet_convblock_config(config_arch),
+            image_size=image_size,
+            num_classes=num_classes
+        )
     elif config_arch in ['resnet50', 'resnet101']:
         model = ResNet(
             config_arch=config_arch, 
@@ -81,6 +98,7 @@ def create_model(
 
     return model
 
+
 class Encoder(json.JSONEncoder):
     """Encoder for json dump. Focusing on numpy type conversion."""
     def default(self, obj):
@@ -95,13 +113,14 @@ class Encoder(json.JSONEncoder):
         else:
             return super().default(obj)
         
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
     # model structure related
     parser.add_argument('config_arch', type=str, help='Architecture of the model. \
-                        Value shoud be mobilevit_xxs, mobilevit_xs, mobilevit_s, vgg16, vgg19, resnet50, resnet101 or vit.')
+                        Value shoud be mobilevit_xxs, mobilevit_xs, mobilevit_s, vgg16, vgg19, resnet18, resnet34, resnet50, resnet101 or vit.')
     parser.add_argument('--image_size', type=int, default=224, help='Height or width of the input image. Default to 224.')
     parser.add_argument('--image_channels', type=int, default=3, help='Channels of the input image. Default to 3.')
     parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate for the mlp layers in these models. Default to 0.5.')

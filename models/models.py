@@ -1,21 +1,21 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
-from typing import List, Callable, Tuple
+from typing import Tuple, Literal
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import VGG16, VGG19
 from tensorflow.keras.applications import ResNet50, ResNet101
-from typing import Literal
+
 
 class MlpBlock(Layer):
     """2-layer mlp block implementaion."""
 
     def __init__(
-            self, 
-            dim: int, 
-            hidden_dim: int, 
-            dropout: float | None = 0.5
+        self, 
+        dim: int, 
+        hidden_dim: int, 
+        dropout: float | None = 0.5
     ):
         """
         Initialize the model.
@@ -42,11 +42,11 @@ class TransformerBlock(Layer):
     """Transformer block implementation."""
 
     def __init__(
-            self, 
-            dim: int, 
-            num_heads: int, 
-            mlp_dim: int, 
-            dropout: float | None = 0.5
+        self, 
+        dim: int, 
+        num_heads: int, 
+        mlp_dim: int, 
+        dropout: float | None = 0.5
     ):
         """
         Initialize the model.
@@ -82,15 +82,15 @@ class ViT(Model):
     """Visiton trandormer implementation."""
 
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int], 
-            patch_size: int | Tuple[int, int], 
-            num_classes: int, 
-            dim: int, 
-            depth: int, 
-            num_heads: int, 
-            mlp_dim: int, 
-            dropout: float | None = 0.5
+        self, 
+        image_size: int | Tuple[int, int, int], 
+        patch_size: int | Tuple[int, int], 
+        num_classes: int, 
+        dim: int, 
+        depth: int, 
+        num_heads: int, 
+        mlp_dim: int, 
+        dropout: float | None = 0.5
     ):
         """
         Initialize the model.
@@ -141,7 +141,7 @@ class ViT(Model):
             layers.LayerNormalization(epsilon=1e-6),
             layers.Dense(mlp_dim, activation=tf.nn.gelu),
             layers.Dropout(dropout),
-            layers.Dense(num_classes),
+            layers.Dense(num_classes, activation='softmax'),
         ])
 
     def call(self, images, training = False):
@@ -172,16 +172,17 @@ class ViT(Model):
         outputs =  self.mlp_head(outputs, training=training)
 
         return outputs
-    
+
+
 class VGG(Model):
     """VGG model."""
 
     def __init__(
-            self,
-            config_arch: Literal['vgg16', 'vgg19'],
-            image_size: int | Tuple[int, int, int],
-            num_classes: int,
-            dropout: float | None = 0.5
+        self,
+        config_arch: Literal['vgg16', 'vgg19'],
+        image_size: int | Tuple[int, int, int],
+        num_classes: int,
+        dropout: float | None = 0.5
     ):
         """
         Initialize the model.
@@ -196,13 +197,14 @@ class VGG(Model):
         if isinstance(image_size, int):
             image_size = (image_size, image_size, 3)
         if config_arch == 'vgg16':
-            self.conv_block = VGG16(include_top=False, weights=None, input_shape=image_size, pooling='max')
+            self.conv_block = VGG16(include_top=False, weights=None, input_shape=image_size, pooling=None)
         elif config_arch == 'vgg19':
-            self.conv_block = VGG19(include_top=False, weights=None, input_shape=image_size, pooling='max')
+            self.conv_block = VGG19(include_top=False, weights=None, input_shape=image_size, pooling=None)
         else:
             raise ValueError(f"Unsupported config_arch {config_arch}")
 
         self.mlp = models.Sequential([
+            layers.Flatten(),
             layers.Dense(4096, activation='relu'),
             layers.Dropout(dropout),
             layers.Dense(4096, activation='relu'),
@@ -216,13 +218,64 @@ class VGG(Model):
 
         return outputs
 
+
+class ResidualBlock(Layer):
+    """Residual Block for ResNet18/34"""
+    def __init__(
+        self,
+        out_channels: int,
+        downsampe: bool | None = False
+    ):
+        super().__init__()
+        if downsampe:
+            self.conv1 = layers.Conv2D(out_channels, kernel_size=3, strides=2, padding="same", use_bias=False)
+            self.downsample = models.Sequential([
+                layers.Conv2D(out_channels, kernel_size=1, strides=2, use_bias=False),
+                layers.BatchNormalization(),
+            ])
+        else:
+            self.conv1 = layers.Conv2D(out_channels, kernel_size=3, strides=1, padding="same", use_bias=False)
+            self.downsample = layers.Identity()
+
+        self.bn1 = layers.BatchNormalization()
+        self.conv2 = layers.Conv2D(out_channels, kernel_size=3, strides=1, padding="same", use_bias=False)
+        self.bn2 = layers.BatchNormalization()
+        self.relu = layers.ReLU()
+    
+    def call(self, inputs):
+        shortcut = self.downsample(inputs)
+
+        outputs = self.conv1(inputs)
+        outputs = self.bn1(outputs)
+        outputs = self.conv2(outputs)   
+        outputs = self.bn2(outputs)
+
+        outputs = outputs + shortcut
+        outputs = self.relu(outputs)
+
+        return outputs
+
+
+class ResNetBlock(Layer):
+    """Resnet blocks, i.e., conv_x in the paper."""
+    def __init__(self, out_channels: int, num_blocks: int, downsample: bool):
+        super().__init__()
+        self.network = models.Sequential()
+        self.network.add(ResidualBlock(out_channels, downsample))
+        for _ in range(1, num_blocks):
+            self.network.add(ResidualBlock(out_channels, False))
+
+    def call(self, x):
+        return self.network(x)
+    
+    
 class ResNet(Model):
     """ResNet."""
     def __init__(
-            self,
-            config_arch: Literal['resnet50', 'resnet101'],
-            image_size: int | Tuple[int, int, int],
-            num_classes: int
+        self,
+        config_arch: Literal['resnet50', 'resnet101'] | list,
+        image_size: int | Tuple[int, int, int],
+        num_classes: int
     ):
         """
         Initialize the model.
@@ -237,17 +290,37 @@ class ResNet(Model):
         if isinstance(image_size, int):
             image_size = (image_size, image_size, 3)
         if config_arch == 'resnet50':
-            self.conv_block = ResNet50(include_top=False, weights=None, input_shape=image_size, pooling='avg')
+            self.conv_block = ResNet50(include_top=False, weights=None, input_shape=image_size, pooling=None)
         elif config_arch == 'resnet101':
-            self.conv_block = ResNet101(include_top=False, weights=None, input_shape=image_size, pooling='avg')
+            self.conv_block = ResNet101(include_top=False, weights=None, input_shape=image_size, pooling=None)
+        elif isinstance(config_arch, list):
+            self.conv_block = self._bulid_conv_block(config_arch)
         else:
             raise ValueError(f"Unsupported config_arch {config_arch}")
 
-        self.classifier = layers.Dense(num_classes, activation='softmax')
+        self.classifier = models.Sequential([
+            layers.GlobalAveragePooling2D(),
+            layers.Dense(num_classes, activation='softmax')
+        ])
+
 
     def call(self, inputs):
         conv_outputs = self.conv_block(inputs)
         outputs = self.classifier(conv_outputs)
 
         return outputs
+    
+    def _bulid_conv_block(self, config):
+        conv_block = models.Sequential([
+            layers.Conv2D(64, kernel_size=7, strides=2, padding="same", use_bias=False),
+            layers.BatchNormalization(),
+            layers.ReLU(),
+            layers.MaxPooling2D(pool_size=3, strides=2),
+            ResNetBlock(config[0][0], config[0][1], False),
+            ResNetBlock(config[1][0], config[1][1], True),
+            ResNetBlock(config[2][0], config[2][1], True),
+            ResNetBlock(config[3][0], config[3][1], True)
+        ])
+
+        return conv_block
     

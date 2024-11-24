@@ -1,12 +1,11 @@
-import tensorflow as tf
 import math
+import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
+from typing import Tuple
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import Model
 from models.models import TransformerBlock
-
-from typing import Tuple
 
 
 class InvertedResidualBlock(Layer):
@@ -70,10 +69,10 @@ class GroupTensor(Layer):
     (b, (hi x hp), (wi x wp), c) -> (b, (hp x wp), (hi x wi), c)
     """
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int], 
-            patch_size: int | tuple[int, int], 
-            channels: int
+        self, 
+        image_size: int | Tuple[int, int, int], 
+        patch_size: int | tuple[int, int], 
+        channels: int
     ):
         """
         Initialize the layer.
@@ -134,10 +133,10 @@ class ReshapeGroupedTensor(Layer):
     (b, (hp, wp), (hi, wi), c) -> (b, (hi, hp), (wi, wp), c)
     """
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int], 
-            patch_size: int | tuple[int, int], 
-            channels: int
+        self, 
+        image_size: int | Tuple[int, int, int], 
+        patch_size: int | tuple[int, int], 
+        channels: int
     ):
         """
         Initialize the layer.
@@ -196,15 +195,15 @@ class MobileViTBlock(Layer):
     conv 3x3 -> conv 1x1 -> grouped transformer for multiple times-> conv 1x1 -> concat -> conv 3x3
     """
     def __init__(
-            self, 
-            num_transformer_blocks: int, 
-            input_channels: int,
-            projection_dim: int, 
-            num_heads: int,
-            mlp_dim: int,
-            image_size: int | Tuple[int, int, int],
-            patch_size: int | Tuple[int, int] | None = 2,
-            dropout: float | None = 0.5
+        self, 
+        num_transformer_blocks: int, 
+        input_channels: int,
+        projection_dim: int, 
+        num_heads: int,
+        mlp_dim: int,
+        image_size: int | Tuple[int, int, int],
+        patch_size: int | Tuple[int, int] | None = 2,
+        dropout: float | None = 0.5
     ):
         """
         Initialize the layer.
@@ -257,15 +256,15 @@ class MobileViT(Model):
     The MobileVit model. See https://arxiv.org/abs/2110.02178.
     """
     def __init__(
-            self, 
-            channels: list,
-            dims: list,
-            mlp_dims: list,
-            num_classes: int, 
-            image_size: int,
-            expansion_factor: int | None = 2,
-            patch_size: int | None = 2,
-            dropout: float | None = 0.5
+        self, 
+        channels: list,
+        dims: list,
+        mlp_dims: list,
+        num_classes: int, 
+        image_size: int,
+        expansion_factor: int | None = 2,
+        patch_size: int | None = 2,
+        dropout: float | None = 0.5
     ):
         """
         Initialize the model.
