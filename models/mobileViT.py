@@ -66,7 +66,7 @@ class GroupTensor(Layer):
     """
     Prepare tensor for grouped tensformer.
 
-    (b, (hi x hp), (wi x wp), c) -> (b, (hp x wp), (hi x wi), c)
+    (b, (h_num x hp), (w_num x wp), c) -> ((b x hp x wp), (h_num x w_num), c)
     """
     def __init__(
         self, 
@@ -92,36 +92,42 @@ class GroupTensor(Layer):
         image_height_new = math.ceil(image_size[0] / patch_size[0]) * patch_size[0]
         image_width_new = math.ceil(image_size[1] / patch_size[1]) * patch_size[1]
 
-        if image_height_new != image_size[0] or image_width_new != image_size[1]:
-            self.resize = layers.Resizing(height = image_height_new, width = image_width_new)
+        self.image_height_new = image_height_new
+        self.image_width_new = image_width_new
+        self.channels = channels
+        self.patch_size = patch_size
+
+        # Layer to ensure the the image size is divisable by the patch size
+        if self.image_height_new != image_size[0] or self.image_width_new != image_size[1]:
+            self.resize = layers.Resizing(height = self.image_height_new, width = self.image_width_new)
         else:
             self.resize = layers.Identity()
-
-        # (b, (hi x hp), (wi x wp), c) -> (b, hi, hp, wi, wp, c)
-        self.reshape1 = layers.Reshape((
-            image_height_new // patch_size[0], 
-            patch_size[0], 
-            image_width_new // patch_size[1], 
-            patch_size[1], 
-            channels
-        ))
-        # (b, hi, hp, wi, wp, c) -> (b, hp, wp, hi, wi, c)
-        self.permute = layers.Permute((2, 4, 1, 3, 5))
-        # (b, hp, wp, hi, wi, c) -> (b, (hp x wp), (hi x wi), c)
-        self.reshape2 = layers.Reshape(( 
-            patch_size[0] * patch_size[1], 
-            image_height_new // patch_size[0] * image_width_new // patch_size[1], 
-            channels
-        ))
         
     def call(self, inputs):
         # resize image if needed so that image_size can be divisible by patch_size
         outputs = self.resize(inputs)
 
-        # reshape tensor to grouped tensors
-        outputs = self.reshape1(outputs)
-        outputs = self.permute(outputs)
-        outputs = self.reshape2(outputs)
+        # reshape tensor to grouped tensors, i.e., unfold the tensor
+        # (b, (h_num x hp), (w_num x wp), c) -> (b, h_num, hp, w_num, wp, c)
+        outputs = tf.reshape(
+            outputs, 
+            (
+                -1,
+                self.image_height_new // self.patch_size[0],
+                self.patch_size[0],
+                self.image_width_new // self.patch_size[1],
+                self.patch_size[1],
+                self.channels
+            )
+        )
+        # (b, h_num, hp, w_num, wp, c) -> (b, hp, wp, h_num, w_num, c)
+        outputs = tf.transpose(outputs, (0, 2, 4, 1, 3, 5))
+        # (b, hp, wp, h_num, w_num, c) -> (b x hp x wp), (hi x wi), c)
+        outputs = tf.reshape(outputs, (
+            -1, 
+            self.image_height_new // self.patch_size[0] * self.image_width_new // self.patch_size[1], 
+            self.channels
+        ))
 
         return outputs
 
@@ -129,6 +135,8 @@ class GroupTensor(Layer):
 class ReshapeGroupedTensor(Layer):
     """
     Reshape tensor after the grouped tensformer.
+
+    ((b x hp x wp), (h_num x w_num), c) -> (b, (h_num x hp), (w_num x wp), c)
 
     (b, (hp, wp), (hi, wi), c) -> (b, (hi, hp), (wi, wp), c)
     """
@@ -156,33 +164,39 @@ class ReshapeGroupedTensor(Layer):
         image_height_new = math.ceil(image_size[0] / patch_size[0]) * patch_size[0]
         image_width_new = math.ceil(image_size[1] / patch_size[1]) * patch_size[1]
 
-        # (b, (hp x wp), (hi x wi), c) -> (b, hp, wp, hi, wi, c)
-        self.reshape1 = layers.Reshape((
-            patch_size[0], 
-            patch_size[1], 
-            image_height_new // patch_size[0], 
-            image_width_new // patch_size[1], 
-            channels
-        ))
-        # (b, hp, wp, hi, wi, c) -> (b, hi, hp, wi, wp, c)
-        self.permute = layers.Permute((3, 1, 4, 2, 5))
-        # (b, hp, wp, hi, wi, c) -> (b, (hp x wp), (hi x wi), c)
-        self.reshape2 = layers.Reshape((
-            image_height_new, 
-            image_width_new, 
-            channels
-        ))
+        self.image_height_new = image_height_new
+        self.image_width_new = image_width_new
+        self.channels = channels
+        self.patch_size = patch_size
 
-        if image_height_new != image_size[0] or image_width_new != image_size[1]:
+        # Layer to convert the image to the original size
+        if self.image_height_new != image_size[0] or self.image_width_new != image_size[1]:
             self.resize = layers.Resizing(height = image_size[0], width = image_size[1])
         else:
             self.resize = layers.Identity()
         
-        
     def call(self, inputs):
-        outputs = self.reshape1(inputs)
-        outputs = self.permute(outputs)
-        outputs = self.reshape2(outputs)
+        # fold the tensor       
+        # (b x hp x wp), (h_num x w_num), c) -> (b, hp, wp, h_num, w_num, c)
+        outputs = tf.reshape(inputs, (
+            -1,
+            self.patch_size[0],
+            self.patch_size[1],
+            self.image_height_new // self.patch_size[0],
+            self.image_width_new // self.patch_size[1],
+            self.channels
+        ))
+        # (b, hp, wp, h_num, w_num, c) -> (b, h_num, hp, w_num, wp, c)
+        outputs = tf.transpose(outputs, (0, 3, 1, 4, 2, 5))
+        # (b, h_num, hp, w_num, wp, c) -> (b, (h_num x hp), (w_num x wp), c)
+        outputs = tf.reshape(outputs, (
+            -1, 
+            self.image_height_new,
+            self.image_width_new,
+            self.channels
+        ))
+
+        # image size conversion
         outputs = self.resize(outputs)
 
         return outputs
