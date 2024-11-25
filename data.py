@@ -26,10 +26,10 @@ class DataLoader():
     classes: Dict[str, int]
     size_train: int
     size_test: int
-    images_train: np.ndarray | None
-    images_test: np.ndarray | None
-    labels_train: np.ndarray | None
-    labels_test: np.ndarray | None
+    images_train: np.ndarray | list
+    images_test: np.ndarray | list
+    labels_train: np.ndarray | list
+    labels_test: np.ndarray | list
 
     def __init__(
         self, 
@@ -59,10 +59,10 @@ class DataLoader():
         self.size_test = 0
 
         # data for training and test sets
-        self.images_train = None
-        self.images_test = None
-        self.labels_train = None
-        self.labels_test = None
+        self.images_train = []
+        self.images_test = []
+        self.labels_train = []
+        self.labels_test = []
 
         
     def _process_image(self, img: np.ndarray):
@@ -108,23 +108,31 @@ class DataLoader():
         images.append(img)
         labels.append(label)
 
-    def _shuffle(self, images: np.ndarray, labels: np.ndarray):
-        """
-        Shuffle the training and test set sparately.
-        
-        Args:
-            images (ndarray): ndarray of the images of the whole dataset.
-            labels (ndarray): ndarray of the labels of the whole dataset.
-        """
+    def _type_size_conversion(self):
+        """Convert images and labels from list to numpy array, and add dimensions for gray images."""
+        self.images_train = np.array(self.images_train, np.float32)
+        self.images_test = np.array(self.images_test, np.float32)
+        self.labels_train = np.array(self.labels_train)
+        self.labels_test = np.array(self.labels_test)
 
-        indices = tf.range(images.shape[0])
+        if self.image_size[2] == 1:
+            self.images_train = np.expand_dims(self.images_train, axis=-1)
+            self.images_test = np.expand_dims(self.images_test, axis=-1)
+
+    def _shuffle_data_sets(self):
+        """Shuffle the training data set and test data set separately."""
+        indices_train = tf.range(self.images_train.shape[0])
+        indices_test = tf.range(self.images_test.shape[0])
 
         # Shuffle the indices
-        shuffled_indices = tf.random.shuffle(indices)
+        shuffled_indices_train = tf.random.shuffle(indices_train)
+        shuffled_indices_test = tf.random.shuffle(indices_test)
 
-        images = images[shuffled_indices]
-        labels = labels[shuffled_indices]
-
+        # Shuffle the data sets
+        self.images_train = self.images_train[shuffled_indices_train]
+        self.labels_train = self.labels_train[shuffled_indices_train]
+        self.images_test = self.images_test[shuffled_indices_test]
+        self.labels_test = self.labels_test[shuffled_indices_test]
 
     def load(self, folder: str, shuffle: bool | None = True):
         """
@@ -136,11 +144,11 @@ class DataLoader():
             shuffle (bool): True indicates shuffle the training and test sets separately. Default to `True`.
         """
 
-        if self.images_train is not None:
-            self.images_train = None
-            self.images_test = None
-            self.labels_train = None
-            self.labels_test = None
+        if self.images_train:
+            self.images_train = []
+            self.images_test = []
+            self.labels_train = []
+            self.labels_test = []
             self.filenames_fail = []
             self.size_train = 0
             self.size_test = 0
@@ -148,40 +156,30 @@ class DataLoader():
 
             warnings.warn('the DataLoader has loaded data before', RuntimeWarning)
 
-        images = []
-        labels = []
-
         # for each label, generate train set and test set
         for label, dir in enumerate(os.listdir(folder)):
             self.classes[dir] = label
             filenames = os.listdir(os.path.join(folder, dir))
 
+            # shuffle the filenames with same label, i.e., under the same folder
+            if shuffle:
+                filenames =[s.decode('utf-8') for s in tf.random.shuffle(filenames).numpy()]
+
+            # index to split data sets
+            index_split = int(self.ratio * len(filenames))
+
             # load training set
-            for filename in filenames:
+            for filename in filenames[0: index_split]:
                 filename_full = os.path.join(folder, dir, filename)
-                self._load_image_label(label=label ,filename=filename_full, images=images, labels=labels)
-
-        images = np.array(images, dtype=np.float32)
-        if self.image_size[2] == 1:
-            images = np.expand_dims(images, axis=-1)
-        labels = np.array(labels)
+                self._load_image_label(label=label ,filename=filename_full, images=self.images_train, labels=self.labels_train)
+            # load test set
+            for filename in filenames[index_split: ]:
+                filename_full = os.path.join(folder, dir, filename)
+                self._load_image_label(label=label ,filename=filename_full, images=self.images_test, labels=self.labels_test)
         
-        # shuffle images
+        self._type_size_conversion()
         if shuffle:
-            self._shuffle(images, labels)
-
-        # split dataset to training and test
-        size = images.shape[0]
-        size_train = int(self.ratio * size)
-
-        self.size_train = size_train
-        self.size_test = size - self.size_train
-
-        self.images_train = images[:self.size_train]
-        self.images_test = images[self.size_train:]
-
-        self.labels_train = labels[:self.size_train]
-        self.labels_test = labels[self.size_train:]
+            self._shuffle_data_sets()
 
         if len(self.filenames_fail) !=0 :
             raise warnings.warn(f'{len(self.filenames_fail)} files were not successfully loaded', RuntimeWarning)
