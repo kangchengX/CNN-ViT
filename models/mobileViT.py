@@ -1,12 +1,37 @@
-import tensorflow as tf
 import math
+import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
+from typing import Tuple, Literal
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import Model
 from models.models import TransformerBlock
 
-from typing import Tuple
+
+class ConvNormActivate(Layer):
+    """
+    2D convolutional layer with batch normalization and swish activation.
+    """
+    def __init__(self, filters: int, kernel_size: int, strides: int, padding: Literal['same', 'valid'] | None = "same"):
+        """
+        Initialize the model.
+
+        Args:
+            filters (int): number of filters in convolution.
+            kernel_size (int): size of the conv kernel.
+            strides (int): stride in convolution.
+            padding (str): padding strategy. Default to `"same"`.
+        """
+        super().__init__()
+        self.conv_layer = layers.Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, padding=padding, use_bias=False)
+        self.bn = layers.BatchNormalization()
+
+    def call(self, inputs):
+        outputs = self.conv_layer(inputs)
+        outputs = self.bn(outputs)
+        outputs = tf.nn.swish(outputs)
+
+        return outputs
 
 
 class InvertedResidualBlock(Layer):
@@ -23,7 +48,7 @@ class InvertedResidualBlock(Layer):
         Initialize the layer.
 
         Args:
-            intput_channels (int): channels of the input tensor.
+            input_channels (int): channels of the input tensor.
             expanded_channels (int): channels of the output tensor of the first 1x1 conv.
             output_channels (int): channels of the output tensor of this layer.
             strides (int): strides of the depth wise conv.
@@ -37,7 +62,7 @@ class InvertedResidualBlock(Layer):
         self.project_conv = layers.Conv2D(output_channels, kernel_size=1, strides=1, padding="same", use_bias=False)
         self.project_bn = layers.BatchNormalization()
 
-        if input_channels == expanded_channels and strides == 1:
+        if input_channels == output_channels and strides == 1:
             self.add = layers.Add()
         else:
             self.add = layers.Lambda(lambda tensors: tensors[1])
@@ -67,13 +92,13 @@ class GroupTensor(Layer):
     """
     Prepare tensor for grouped tensformer.
 
-    (b, (hi x hp), (wi x wp), c) -> (b, (hp x wp), (hi x wi), c)
+    (b, (h_num x hp), (w_num x wp), c) -> ((b x hp x wp), (h_num x w_num), c)
     """
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int], 
-            patch_size: int | tuple[int, int], 
-            channels: int
+        self, 
+        image_size: int | Tuple[int, int, int], 
+        patch_size: int | tuple[int, int], 
+        channels: int
     ):
         """
         Initialize the layer.
@@ -93,36 +118,42 @@ class GroupTensor(Layer):
         image_height_new = math.ceil(image_size[0] / patch_size[0]) * patch_size[0]
         image_width_new = math.ceil(image_size[1] / patch_size[1]) * patch_size[1]
 
-        if image_height_new != image_size[0] or image_width_new != image_size[1]:
-            self.resize = layers.Resizing(height = image_height_new, width = image_width_new)
+        self.image_height_new = image_height_new
+        self.image_width_new = image_width_new
+        self.channels = channels
+        self.patch_size = patch_size
+
+        # Layer to ensure the the image size is divisable by the patch size
+        if self.image_height_new != image_size[0] or self.image_width_new != image_size[1]:
+            self.resize = layers.Resizing(height = self.image_height_new, width = self.image_width_new)
         else:
             self.resize = layers.Identity()
-
-        # (b, (hi x hp), (wi x wp), c) -> (b, hi, hp, wi, wp, c)
-        self.reshape1 = layers.Reshape((
-            image_height_new // patch_size[0], 
-            patch_size[0], 
-            image_width_new // patch_size[1], 
-            patch_size[1], 
-            channels
-        ))
-        # (b, hi, hp, wi, wp, c) -> (b, hp, wp, hi, wi, c)
-        self.permute = layers.Permute((2, 4, 1, 3, 5))
-        # (b, hp, wp, hi, wi, c) -> (b, (hp x wp), (hi x wi), c)
-        self.reshape2 = layers.Reshape(( 
-            patch_size[0] * patch_size[1], 
-            image_height_new // patch_size[0] * image_width_new // patch_size[1], 
-            channels
-        ))
         
     def call(self, inputs):
         # resize image if needed so that image_size can be divisible by patch_size
         outputs = self.resize(inputs)
 
-        # reshape tensor to grouped tensors
-        outputs = self.reshape1(outputs)
-        outputs = self.permute(outputs)
-        outputs = self.reshape2(outputs)
+        # reshape tensor to grouped tensors, i.e., unfold the tensor
+        # (b, (h_num x hp), (w_num x wp), c) -> (b, h_num, hp, w_num, wp, c)
+        outputs = tf.reshape(
+            outputs, 
+            (
+                -1,
+                self.image_height_new // self.patch_size[0],
+                self.patch_size[0],
+                self.image_width_new // self.patch_size[1],
+                self.patch_size[1],
+                self.channels
+            )
+        )
+        # (b, h_num, hp, w_num, wp, c) -> (b, hp, wp, h_num, w_num, c)
+        outputs = tf.transpose(outputs, (0, 2, 4, 1, 3, 5))
+        # (b, hp, wp, h_num, w_num, c) -> (b x hp x wp), (hi x wi), c)
+        outputs = tf.reshape(outputs, (
+            -1, 
+            self.image_height_new // self.patch_size[0] * self.image_width_new // self.patch_size[1], 
+            self.channels
+        ))
 
         return outputs
 
@@ -131,13 +162,15 @@ class ReshapeGroupedTensor(Layer):
     """
     Reshape tensor after the grouped tensformer.
 
+    ((b x hp x wp), (h_num x w_num), c) -> (b, (h_num x hp), (w_num x wp), c)
+
     (b, (hp, wp), (hi, wi), c) -> (b, (hi, hp), (wi, wp), c)
     """
     def __init__(
-            self, 
-            image_size: int | Tuple[int, int, int], 
-            patch_size: int | tuple[int, int], 
-            channels: int
+        self, 
+        image_size: int | Tuple[int, int, int], 
+        patch_size: int | tuple[int, int], 
+        channels: int
     ):
         """
         Initialize the layer.
@@ -157,33 +190,39 @@ class ReshapeGroupedTensor(Layer):
         image_height_new = math.ceil(image_size[0] / patch_size[0]) * patch_size[0]
         image_width_new = math.ceil(image_size[1] / patch_size[1]) * patch_size[1]
 
-        # (b, (hp x wp), (hi x wi), c) -> (b, hp, wp, hi, wi, c)
-        self.reshape1 = layers.Reshape((
-            patch_size[0], 
-            patch_size[1], 
-            image_height_new // patch_size[0], 
-            image_width_new // patch_size[1], 
-            channels
-        ))
-        # (b, hp, wp, hi, wi, c) -> (b, hi, hp, wi, wp, c)
-        self.permute = layers.Permute((3, 1, 4, 2, 5))
-        # (b, hp, wp, hi, wi, c) -> (b, (hp x wp), (hi x wi), c)
-        self.reshape2 = layers.Reshape((
-            image_height_new, 
-            image_width_new, 
-            channels
-        ))
+        self.image_height_new = image_height_new
+        self.image_width_new = image_width_new
+        self.channels = channels
+        self.patch_size = patch_size
 
-        if image_height_new != image_size[0] or image_width_new != image_size[1]:
+        # Layer to convert the image to the original size
+        if self.image_height_new != image_size[0] or self.image_width_new != image_size[1]:
             self.resize = layers.Resizing(height = image_size[0], width = image_size[1])
         else:
             self.resize = layers.Identity()
         
-        
     def call(self, inputs):
-        outputs = self.reshape1(inputs)
-        outputs = self.permute(outputs)
-        outputs = self.reshape2(outputs)
+        # fold the tensor       
+        # (b x hp x wp), (h_num x w_num), c) -> (b, hp, wp, h_num, w_num, c)
+        outputs = tf.reshape(inputs, (
+            -1,
+            self.patch_size[0],
+            self.patch_size[1],
+            self.image_height_new // self.patch_size[0],
+            self.image_width_new // self.patch_size[1],
+            self.channels
+        ))
+        # (b, hp, wp, h_num, w_num, c) -> (b, h_num, hp, w_num, wp, c)
+        outputs = tf.transpose(outputs, (0, 3, 1, 4, 2, 5))
+        # (b, h_num, hp, w_num, wp, c) -> (b, (h_num x hp), (w_num x wp), c)
+        outputs = tf.reshape(outputs, (
+            -1, 
+            self.image_height_new,
+            self.image_width_new,
+            self.channels
+        ))
+
+        # image size conversion
         outputs = self.resize(outputs)
 
         return outputs
@@ -196,15 +235,15 @@ class MobileViTBlock(Layer):
     conv 3x3 -> conv 1x1 -> grouped transformer for multiple times-> conv 1x1 -> concat -> conv 3x3
     """
     def __init__(
-            self, 
-            num_transformer_blocks: int, 
-            input_channels: int,
-            projection_dim: int, 
-            num_heads: int,
-            mlp_dim: int,
-            image_size: int | Tuple[int, int, int],
-            patch_size: int | Tuple[int, int] | None = 2,
-            dropout: float | None = 0.5
+        self, 
+        num_transformer_blocks: int, 
+        input_channels: int,
+        projection_dim: int, 
+        num_heads: int,
+        mlp_dim: int,
+        image_size: int | Tuple[int, int, int],
+        patch_size: int | Tuple[int, int] | None = 2,
+        dropout: float | None = 0.5
     ):
         """
         Initialize the layer.
@@ -220,19 +259,19 @@ class MobileViTBlock(Layer):
             dropout (float): dropout in the mlp layer.
         """
         super().__init__()
-        self.local_conv1 = layers.Conv2D(filters=input_channels, kernel_size=3, strides=1, activation=tf.nn.swish, padding="same")
-        self.local_conv2 = layers.Conv2D(filters=projection_dim, kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv1 = ConvNormActivate(filters=input_channels, kernel_size=3, strides=1, padding="same")
+        self.local_conv2 = ConvNormActivate(filters=projection_dim, kernel_size=1, strides=1, padding="same")
         self.group_tensor = GroupTensor(image_size=image_size, patch_size=patch_size, channels=projection_dim)
         
         self.transformers = models.Sequential()
         for _ in range(num_transformer_blocks):
-            self.transformers.add(TransformerBlock(dim=projection_dim, num_heads=num_heads, mlp_dim=mlp_dim, dropout=dropout))
+            self.transformers.add(TransformerBlock(dim=projection_dim, num_heads=num_heads, mlp_dim=mlp_dim, dropout=dropout, activation=tf.nn.swish))
 
         self.reshape_grouped_tensor = ReshapeGroupedTensor(image_size=image_size, patch_size=patch_size, channels=projection_dim)
 
-        self.local_conv3 = layers.Conv2D(filters=input_channels, kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv3 = ConvNormActivate(filters=input_channels, kernel_size=1, strides=1, padding="same")
         self.concat_tensors = layers.Concatenate(axis=-1)
-        self.local_conv4  = layers.Conv2D(filters=input_channels, kernel_size=3, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv4  = ConvNormActivate(filters=input_channels, kernel_size=3, strides=1, padding="same")
     
     def call(self, inputs):
         # convolution
@@ -257,15 +296,16 @@ class MobileViT(Model):
     The MobileVit model. See https://arxiv.org/abs/2110.02178.
     """
     def __init__(
-            self, 
-            channels: list,
-            dims: list,
-            mlp_dims: list,
-            num_classes: int, 
-            image_size: int,
-            expansion_factor: int | None = 2,
-            patch_size: int | None = 2,
-            dropout: float | None = 0.5
+        self, 
+        channels: list,
+        dims: list,
+        mlp_dims: list,
+        num_classes: int, 
+        image_size: int,
+        expansion_factor: int | None = 2,
+        patch_size: int | None = 2,
+        dropout: float | None = 0.5,
+        last_conv_expansion_factor: int | None = 4
     ):
         """
         Initialize the model.
@@ -280,10 +320,11 @@ class MobileViT(Model):
             image_size (int): image_size = image_height = image_width.
             expansion_factor: expansion_factor in the inverted resudual block.
             patch_size (int): patch_size = patch_height = path_width.
-            dropout: dropout rate in the mlp.
+            dropout (float): dropout rate in the mlp.
+            last_conv_expansion_factor (int): expansion factor for channels in the last convolutional layer.
         """
-        super(MobileViT, self).__init__()
-        self.conv3x3 = layers.Conv2D(filters=channels[0], kernel_size=3, strides=2, activation=tf.nn.swish, padding="same")
+        super().__init__()
+        self.conv3x3 = ConvNormActivate(filters=channels[0], kernel_size=3, strides=2, padding="same")
         self.mv2_block1 = InvertedResidualBlock(channels[0], channels[0] * expansion_factor, channels[1], 1)
         self.mv2_block2 = InvertedResidualBlock(channels[1], channels[1] * expansion_factor, channels[2], 2)
         self.mv2_block3 = InvertedResidualBlock(channels[2], channels[2] * expansion_factor, channels[3], 1)
@@ -322,7 +363,7 @@ class MobileViT(Model):
             dropout=dropout
         )
 
-        self.conv1x1 = layers.Conv2D(filters=channels[0], kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.conv1x1 = ConvNormActivate(filters=last_conv_expansion_factor * channels[7], kernel_size=1, strides=1, padding="same")
         self.global_avg_pool = layers.GlobalAvgPool2D()
         self.classifier = layers.Dense(num_classes, activation="softmax")
 
@@ -348,3 +389,4 @@ class MobileViT(Model):
         outputs = self.global_avg_pool(outputs)
         outputs = self.classifier(outputs)
         return outputs
+    
