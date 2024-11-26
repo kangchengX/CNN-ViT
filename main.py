@@ -120,13 +120,13 @@ def main():
     # model structure related
     parser.add_argument('config_arch', type=str, help='Architecture of the model. \
                         Value shoud be mobilevit_xxs, mobilevit_xs, mobilevit_s, vgg16, vgg19, resnet18, resnet34, resnet50, resnet101 or vit.')
-    parser.add_argument('--image_size', type=int, default=64, help='Height or width of the input image. Default to 64.')
+    parser.add_argument('--image_size', type=int, default=128, help='Height or width of the input image. Default to 128.')
     parser.add_argument('--image_channels', type=int, default=3, help='Channels of the input image. Default to 3.')
     parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate for the mlp layers in these models. Default to 0.5.')
     parser.add_argument("--vit_patch_size", type=int, default=2, help='Patch size for the Vision Transformer. Default to 2.')
     parser.add_argument("--vit_dim", type=int, default=256, help='(Word) dimension of the Vision Transformer. Default to 256.')
-    parser.add_argument("--vit_depth", type=int, default=8, help='Number of layers in the Vision Transformer. Default to 8.')
-    parser.add_argument("--vit_num_heads", type=int, default=8, help='Number of attention heads in the Vision Transformer. Default to 8.')
+    parser.add_argument("--vit_depth", type=int, default=4, help='Number of layers in the Vision Transformer. Default to 4.')
+    parser.add_argument("--vit_num_heads", type=int, default=4, help='Number of attention heads in the Vision Transformer. Default to 4.')
     parser.add_argument("--vit_mlp_dim", type=int, default=512, help='Dimension of the mlp hidden layer in the Vision Transformer. Default to 512.')
     
     # data related
@@ -135,9 +135,9 @@ def main():
     parser.add_argument('--not_shuffle', action='store_false', help='Not to shuffle the dataset.')
 
     # training related
-    parser.add_argument('--num_epochs', type=int, default=40, help='Number of epochs. Default to 40.')
+    parser.add_argument('--num_epochs', type=int, default=200, help='Number of epochs. Default to 200.')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size. Default to 16.')
-    parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate. Default to 1e-5.')
+    parser.add_argument('--learning_rate', type=float, default=1e-6, help='Learning rate. Default to 1e-6.')
 
     # results saving related
     parser.add_argument('--results_filename', type=str, default='results', help='Path to save the results. \
@@ -246,4 +246,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

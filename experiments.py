@@ -1,4 +1,10 @@
-import subprocess, os, warnings, sys
+import subprocess, os, warnings, sys, random
+import tensorflow as tf
+import numpy as np
+
+random.seed(2023)
+np.random.seed(2023)
+tf.random.set_seed(2023)
 
 
 if __name__ == '__main__':

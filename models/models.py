@@ -64,7 +64,7 @@ class TransformerBlock(Layer):
         
         super().__init__()
         self.norm1 = layers.LayerNormalization(epsilon=1e-6)
-        self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=dim)
+        self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=dim // num_heads)
         self.norm2 = layers.LayerNormalization(epsilon=1e-6)
         self.mlp = MlpBlock(dim, hidden_dim=mlp_dim, dropout=dropout, activation=activation)
 
