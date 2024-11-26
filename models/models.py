@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
-from typing import Tuple, Literal
+from typing import Tuple, Literal, Callable
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import VGG16, VGG19
@@ -15,7 +15,8 @@ class MlpBlock(Layer):
         self, 
         dim: int, 
         hidden_dim: int, 
-        dropout: float | None = 0.5
+        dropout: float | None = 0.5,
+        activation: Callable | None = tf.nn.gelu
     ):
         """
         Initialize the model.
@@ -24,11 +25,12 @@ class MlpBlock(Layer):
             dim (int): dimension of the inputs and outputs, i.e. dimension of the words vector.
             hidden_dim (int): hidden dimension.
             dropout (float): dropout percentage. Default to `0.5`.
+            activation (Callable): activation function for the first dense layer.
         """
         
         super().__init__()
         self.net = models.Sequential([
-            layers.Dense(hidden_dim, activation=tf.nn.gelu),
+            layers.Dense(hidden_dim, activation=activation),
             layers.Dropout(dropout),
             layers.Dense(dim),
             layers.Dropout(dropout),
@@ -46,7 +48,8 @@ class TransformerBlock(Layer):
         dim: int, 
         num_heads: int, 
         mlp_dim: int, 
-        dropout: float | None = 0.5
+        dropout: float | None = 0.5,
+        activation: Callable | None = tf.nn.gelu
     ):
         """
         Initialize the model.
@@ -56,13 +59,14 @@ class TransformerBlock(Layer):
             num_heads (int): number of heads.
             mlp_dim (int): hidden dimension of mlp blocks.
             dropout (float): dropout percentage. Default to `0.5`.
+            activation (Callable): activation function for the first dense layer.
         """
         
         super().__init__()
         self.norm1 = layers.LayerNormalization(epsilon=1e-6)
         self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=dim)
         self.norm2 = layers.LayerNormalization(epsilon=1e-6)
-        self.mlp = MlpBlock(dim, hidden_dim=mlp_dim, dropout=dropout)
+        self.mlp = MlpBlock(dim, hidden_dim=mlp_dim, dropout=dropout, activation=activation)
 
     def call(self, inputs):
         # first residual connection flow

@@ -2,10 +2,36 @@ import math
 import tensorflow as tf
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
-from typing import Tuple
+from typing import Tuple, Literal
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.models import Model
 from models.models import TransformerBlock
+
+
+class ConvNormActivate(Layer):
+    """
+    2D convolutional layer with batch normalization and swish activation.
+    """
+    def __init__(self, filters: int, kernel_size: int, strides: int, padding: Literal['same', 'valid'] | None = "same"):
+        """
+        Initialize the model.
+
+        Args:
+            filters (int): number of filters in convolution.
+            kernel_size (int): size of the conv kernel.
+            strides (int): stride in convolution.
+            padding (str): padding strategy. Default to `"same"`.
+        """
+        super().__init__()
+        self.conv_layer = layers.Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, padding=padding, use_bias=False)
+        self.bn = layers.BatchNormalization()
+
+    def call(self, inputs):
+        outputs = self.conv_layer(inputs)
+        outputs = self.bn(outputs)
+        outputs = tf.nn.swish(outputs)
+
+        return outputs
 
 
 class InvertedResidualBlock(Layer):
@@ -22,7 +48,7 @@ class InvertedResidualBlock(Layer):
         Initialize the layer.
 
         Args:
-            intput_channels (int): channels of the input tensor.
+            input_channels (int): channels of the input tensor.
             expanded_channels (int): channels of the output tensor of the first 1x1 conv.
             output_channels (int): channels of the output tensor of this layer.
             strides (int): strides of the depth wise conv.
@@ -36,7 +62,7 @@ class InvertedResidualBlock(Layer):
         self.project_conv = layers.Conv2D(output_channels, kernel_size=1, strides=1, padding="same", use_bias=False)
         self.project_bn = layers.BatchNormalization()
 
-        if input_channels == expanded_channels and strides == 1:
+        if input_channels == output_channels and strides == 1:
             self.add = layers.Add()
         else:
             self.add = layers.Lambda(lambda tensors: tensors[1])
@@ -233,19 +259,19 @@ class MobileViTBlock(Layer):
             dropout (float): dropout in the mlp layer.
         """
         super().__init__()
-        self.local_conv1 = layers.Conv2D(filters=input_channels, kernel_size=3, strides=1, activation=tf.nn.swish, padding="same")
-        self.local_conv2 = layers.Conv2D(filters=projection_dim, kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv1 = ConvNormActivate(filters=input_channels, kernel_size=3, strides=1, padding="same")
+        self.local_conv2 = ConvNormActivate(filters=projection_dim, kernel_size=1, strides=1, padding="same")
         self.group_tensor = GroupTensor(image_size=image_size, patch_size=patch_size, channels=projection_dim)
         
         self.transformers = models.Sequential()
         for _ in range(num_transformer_blocks):
-            self.transformers.add(TransformerBlock(dim=projection_dim, num_heads=num_heads, mlp_dim=mlp_dim, dropout=dropout))
+            self.transformers.add(TransformerBlock(dim=projection_dim, num_heads=num_heads, mlp_dim=mlp_dim, dropout=dropout, activation=tf.nn.swish))
 
         self.reshape_grouped_tensor = ReshapeGroupedTensor(image_size=image_size, patch_size=patch_size, channels=projection_dim)
 
-        self.local_conv3 = layers.Conv2D(filters=input_channels, kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv3 = ConvNormActivate(filters=input_channels, kernel_size=1, strides=1, padding="same")
         self.concat_tensors = layers.Concatenate(axis=-1)
-        self.local_conv4  = layers.Conv2D(filters=input_channels, kernel_size=3, strides=1, activation=tf.nn.swish, padding="same")
+        self.local_conv4  = ConvNormActivate(filters=input_channels, kernel_size=3, strides=1, padding="same")
     
     def call(self, inputs):
         # convolution
@@ -297,8 +323,8 @@ class MobileViT(Model):
             dropout (float): dropout rate in the mlp.
             last_conv_expansion_factor (int): expansion factor for channels in the last convolutional layer.
         """
-        super(MobileViT, self).__init__()
-        self.conv3x3 = layers.Conv2D(filters=channels[0], kernel_size=3, strides=2, activation=tf.nn.swish, padding="same")
+        super().__init__()
+        self.conv3x3 = ConvNormActivate(filters=channels[0], kernel_size=3, strides=2, padding="same")
         self.mv2_block1 = InvertedResidualBlock(channels[0], channels[0] * expansion_factor, channels[1], 1)
         self.mv2_block2 = InvertedResidualBlock(channels[1], channels[1] * expansion_factor, channels[2], 2)
         self.mv2_block3 = InvertedResidualBlock(channels[2], channels[2] * expansion_factor, channels[3], 1)
@@ -337,7 +363,7 @@ class MobileViT(Model):
             dropout=dropout
         )
 
-        self.conv1x1 = layers.Conv2D(filters=last_conv_expansion_factor * channels[7], kernel_size=1, strides=1, activation=tf.nn.swish, padding="same")
+        self.conv1x1 = ConvNormActivate(filters=last_conv_expansion_factor * channels[7], kernel_size=1, strides=1, padding="same")
         self.global_avg_pool = layers.GlobalAvgPool2D()
         self.classifier = layers.Dense(num_classes, activation="softmax")
 
@@ -363,3 +389,4 @@ class MobileViT(Model):
         outputs = self.global_avg_pool(outputs)
         outputs = self.classifier(outputs)
         return outputs
+    
