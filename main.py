@@ -8,7 +8,7 @@ from config import get_mobilevit_config, get_resnet_convblock_config
 from data import DataLoader
 from models.models import VGG, ResNet, ViT
 from models.mobileViT import MobileViT
-from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, balanced_accuracy_score
+from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score
 tf.get_logger().setLevel('ERROR') # Filter out "WARNING:tensorflow:"
 
 
@@ -58,8 +58,7 @@ def create_model(
         config = get_mobilevit_config(
             config_arch=config_arch, 
             num_classes=num_classes, 
-            image_size=image_size, 
-            image_channels=image_channels,
+            image_size=image_size,
             dropout=dropout
         )
         model = MobileViT(**config)
@@ -114,21 +113,21 @@ class Encoder(json.JSONEncoder):
             return super().default(obj)
         
 
-if __name__ == '__main__':
+def main():
 
     parser = argparse.ArgumentParser()
 
     # model structure related
     parser.add_argument('config_arch', type=str, help='Architecture of the model. \
                         Value shoud be mobilevit_xxs, mobilevit_xs, mobilevit_s, vgg16, vgg19, resnet18, resnet34, resnet50, resnet101 or vit.')
-    parser.add_argument('--image_size', type=int, default=224, help='Height or width of the input image. Default to 224.')
+    parser.add_argument('--image_size', type=int, default=64, help='Height or width of the input image. Default to 64.')
     parser.add_argument('--image_channels', type=int, default=3, help='Channels of the input image. Default to 3.')
     parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate for the mlp layers in these models. Default to 0.5.')
     parser.add_argument("--vit_patch_size", type=int, default=2, help='Patch size for the Vision Transformer. Default to 2.')
-    parser.add_argument("--vit_dim", type=int, default=768, help='(Word) dimension of the Vision Transformer. Default to 768.')
-    parser.add_argument("--vit_depth", type=int, help='Number of layers in the Vision Transformer.')
-    parser.add_argument("--vit_num_heads", type=int, help='Number of attention heads in the Vision Transformer.')
-    parser.add_argument("--vit_mlp_dim", type=int, default=1536, help='Dimension of the mlp hidden layer in the Vision Transformer.')
+    parser.add_argument("--vit_dim", type=int, default=256, help='(Word) dimension of the Vision Transformer. Default to 256.')
+    parser.add_argument("--vit_depth", type=int, default=8, help='Number of layers in the Vision Transformer. Default to 8.')
+    parser.add_argument("--vit_num_heads", type=int, default=8, help='Number of attention heads in the Vision Transformer. Default to 8.')
+    parser.add_argument("--vit_mlp_dim", type=int, default=512, help='Dimension of the mlp hidden layer in the Vision Transformer. Default to 512.')
     
     # data related
     parser.add_argument('--split_ratio', type=float, default=0.75, help='Ratio of the training set in the whole dataset.')
@@ -136,9 +135,9 @@ if __name__ == '__main__':
     parser.add_argument('--not_shuffle', action='store_false', help='Not to shuffle the dataset.')
 
     # training related
-    parser.add_argument('--num_epochs', type=int, default=20, help='Number of epochs. Default to 20.')
+    parser.add_argument('--num_epochs', type=int, default=40, help='Number of epochs. Default to 40.')
     parser.add_argument('--batch_size', type=int, default=16, help='Batch size. Default to 16.')
-    parser.add_argument('--learning_rate', type=float, default=1e-2, help='Learning rate. Default to 0.01.')
+    parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate. Default to 1e-5.')
 
     # results saving related
     parser.add_argument('--results_filename', type=str, default='results', help='Path to save the results. \
@@ -162,13 +161,14 @@ if __name__ == '__main__':
                 'word_dim', 
                 'depth', 
                 'num_heads', 
-                'learning_rate',
-                'batch_size',
-                'num_trainable_params', 
-                'last_train_loss', 
-                'last_train_accuracy', 
+                'num_trainable_params',
+                'train_losses', 
+                'train_accuracies', 
                 'test_loss', 
-                'test_accuracy'
+                'test_accuracy',
+                'test_weighted_accuracy',
+                'test_f1_score',
+                'test_confidence_score'
             ]
         ) if args.config_arch == 'vit' else {}
 
@@ -191,14 +191,14 @@ if __name__ == '__main__':
     )
 
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=args.learning_rate), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    print('-'*40 + 'train' + '-'*40)
+    print('-'*40 + f'train: {args.config_arch}' + '-'*40)
     history = model.fit(data_loader.images_train, data_loader.labels_train, epochs=args.num_epochs, batch_size=args.batch_size)
 
     train_accuracies = history.history['accuracy']
     train_losses = history.history['loss']
 
     # model test
-    print('-'*40 + 'test' + '-'*40)
+    print('-'*40 + f'test: {args.config_arch}' + '-'*40)
     y_pred_probs = model.predict(data_loader.images_test)
     y_pred = tf.argmax(y_pred_probs, axis=1).numpy()
     y_true = data_loader.labels_test
@@ -208,13 +208,24 @@ if __name__ == '__main__':
     test_weighted_accuracy = balanced_accuracy_score(y_true, y_pred)
     test_f1_score = f1_score(y_true, y_pred, average='macro')
     test_confidence_score = np.mean(np.max(y_pred_probs, axis=1))
-    test_confusion_matrix = confusion_matrix(y_true, y_pred)
 
     num_trainable_params = sum([tf.size(v).numpy() for v in model.trainable_weights])
 
     # save results
     if args.config_arch == 'vit':
-        results.loc[len(results)] = [args.vit_dim, args.vit_depth, args.vit_num_heads, args.learning_rate, args.batch_size, num_trainable_params, train_losses[-1], train_accuracies[-1], test_loss, test_accuracy]
+        results.loc[len(results)] = [
+            args.vit_dim,
+            args.vit_depth,
+            args.vit_num_heads,
+            num_trainable_params,
+            train_losses,
+            train_accuracies,
+            test_loss,
+            test_accuracy,
+            test_weighted_accuracy,
+            test_f1_score,
+            test_confidence_score
+        ]
         results.to_csv(file_path, index=False)
     else:
         if args.config_arch in results:
@@ -227,9 +238,12 @@ if __name__ == '__main__':
             'test_accuracy' : test_accuracy,
             'test_weighted_accuracy' : test_weighted_accuracy,
             'test_f1_score' : test_f1_score,
-            'test_confidence_score' : test_confidence_score,
-            'test_confusion_matrix' : test_confusion_matrix.tolist()
+            'test_confidence_score' : test_confidence_score
         }
         with open(file_path, 'w') as f:
             json.dump(results, f, cls=Encoder, indent=4)
+
+
+if __name__ == '__main__':
+    main()
     
