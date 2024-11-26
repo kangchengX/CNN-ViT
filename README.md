@@ -21,6 +21,7 @@
 
 - [Overview](#overview)
 - [Repository Structure](#repository-structure)
+- [Results](#results)
 - [Data](#data)
    - [Data Structure](#data-structure)
    - [Data Sources](#data-sources)
@@ -150,18 +151,32 @@ The data used in this project is collected from Palace Museum, Taipei, which con
 
 <h4>From <code>source</code></h4>
 
-> 1. Clone the repository:
+> 1. Create a virtual environment:
+>
+> Windows:
+> ```console
+> py -3.10 -m venv cnn-vit-venv
+> cnn-vit-venv\Scripts\activate
+> ```
+>
+> Linux:
+> ```console
+> python3.10 -m venv cnn-vit-venv
+> source cnn-vit-venv/bin/activate
+> ```
+>
+> 2. Clone the repository:
 >
 > ```console
 > git clone https://github.com/kangchengX/CNN-ViT.git
 > ```
 >
-> 2. Change to the project directory:
+> 3. Change to the project directory:
 > ```console
 > cd CNN-ViT
 > ```
 >
-> 3. Install the dependencies:
+> 4. Install the dependencies:
 > ```console
 > pip install -r requirements.txt
 > ```
