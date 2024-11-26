@@ -23,14 +23,11 @@
 - [Repository Structure](#repository-structure)
 - [Data](#data)
    - [Data Structure](#data-structure)
-   - [Data Sources](#data-sources)
 - [Modules](#modules)
 - [Getting Started](#getting-started)
    - [Installation](#installation)
    - [Data](#data-1)
    - [Usage](#usage)
-      - [Run all the experiments](#run-all-the-experiments)
-      - [Run the single pipeline](#run-the-single-pipeline)
 </details>
 <hr>
 
@@ -46,17 +43,17 @@ This project implements ViT and MobileViT from scratch, both of with are compati
 
 ```sh
 └── CNN-ViT/
-    └── data/
-        ├── CQ
-        │   ├── cq0.jpg
-        │   ├── cq1.jpg
-        │   └── ...
-        ├── OTQ
-        └── TQ
+    ├── data/
+    │   ├── CQ
+    │   │   ├── cq0.jpg
+    │   │   ├── cq1.jpg
+    │   │   └── ...
+    │   ├── OTQ
+    │   └── TQ
     ├── config.py
     ├── data.py
     ├── main.py
-    ├── models
+    ├── models/
     │   ├── __init__.py
     │   ├── mobileViT.py
     │   └── models.py
@@ -69,7 +66,7 @@ This project implements ViT and MobileViT from scratch, both of with are compati
 ## Data
 
 ### Data Structure
-The data folder needs to have the following structure and puts in the project folder if not specified in running:
+The data folder must hold the following structure and is put in the project folder `CNN-ViT` if not specified in running:
 ```sh
 └── data/
     ├── classname1
@@ -79,12 +76,9 @@ The data folder needs to have the following structure and puts in the project fo
     ├── classname2
     └── ...
 ```
-, i.e., the `data` folder has child folders with class names as names, each of which contains the images of the correponding class.
+, i.e., the data folder (in this case, the name of the folder is `data`) had child folders with class names as names, each of which contains the images of the correponding class.
 
 Some example images have already been placed in this folder.
-
-### Data Sources
-These example images data used in this project is collected from Palace Museum, Taipei, which contains 4 classes with 2000 around images of cultural relics.
 
 ---
 
@@ -96,7 +90,7 @@ These example images data used in this project is collected from Palace Museum, 
 | ---                                  | --- |
 | [config.py](config.py)               | Defines configurations for different architectures of the MobileViT model, allowing customization of parameters such as number of classes, image size, and dropout rates to adapt to various image classification tasks within the CNN-ViT projects architecture.                                                                              |
 | [data.py](data.py)                   | DataLoader in CNN-ViT manages image dataset preprocessing by loading, normalizing, and partitioning data into training and testing sets, supporting image resizing and format adjustments for model compatibility, and including functionality for data shuffling.                                |
-| [main.py](main.py)                   | `main.py` orchestrates the model training and evaluation pipeline including configuration, data loading, training, and evaluation of various neural network models including MobileViT, VGG, ResNet, and Vision Transformer.           |
+| [main.py](main.py)                   | `main.py` organizes the model training and evaluation pipeline including configuration, data loading, training, and evaluation of various neural network models including MobileViT, VGG, ResNet, and Vision Transformer.           |
 | [requirements.txt](requirements.txt) | Contains the depandencies of the project.|
 | [setup.py](setup.py)     | Some setup for this command line tool.|
 
@@ -180,24 +174,26 @@ Put the data folder with the structure described in the above section [Data](#da
 |**Positional** |      |             |               |
 | `config_arch`     | String | Architecture of the model. Value should be `mobilevit_xxs`, `mobilevit_xs`, `mobilevit_s`, `vgg16`, `vgg19`, `resnet50`, `resnet101`, or `vit`. | N/A |
 |**Option** |      |             |               |
-| `--image_size`     | Integer | Height or width of the input image. | `224` |
+| `--image_size`     | Integer | Height or width of the input image. | `128` |
 | `--image_channels` | Integer | Channels of the input image. | `3` |
-| `--dropout`        | Float   | Patch size for the Vision Transformer. | `2` |
-| `--vit_dim`        | Integer | (Word) dimension of the Vision Transformer. | `768` |
-| `--vit_depth`      | Integer | Number of layers in the Vision Transformer. | `None`  |
-| `--vit_num_heads`  | Integer | Number of attention heads in the Vision Transformer.  | `None` |
-| `--vit_mlp_dim`    | Integer | Dimension of the MLP hidden layer in the Vision Transformer. | `1536` |
+| `--dropout`        | Float   | Dropout ratio. | `0.5` |
+| `--vit_patch_size` | Integer | Patch size for the Vision Transformer. | `2` |
+| `--vit_dim`        | Integer | (Word) dimension of the Vision Transformer. | `256` |
+| `--vit_depth`      | Integer | Number of layers in the Vision Transformer. | `4`  |
+| `--vit_num_heads`  | Integer | Number of attention heads in the Vision Transformer.  | `4` |
+| `--vit_mlp_dim`    | Integer | Dimension of the MLP hidden layer in the Vision Transformer. | `512` |
 | `--split_ratio`    | Float   | Ratio of the training set in the whole dataset. | `0.75` |
 | `--data_folder`    | String  | Folder containing the data.  | `data` |
-| `--not_shuffle`    | Boolean | Indicates if to shuffle the dataset. (Set to `Flase` if present) | `True` |
-| `--num_epochs`     | Integer | Number of epochs. | `20` |
+| `--not_shuffle`    | Boolean | Not to shuffle the dataset. If the value is `Flase`, i.e., present, the data will not be suffled. | `True` |
+| `--num_epochs`     | Integer | Number of epochs. | `200` |
 | `--batch_size`     | Integer | Batch size. | `16` |
-| `--learning_rate`  | Float | Learning rate. | `0.01` |
+| `--learning_rate`  | Float | Learning rate. | `1e-6` |
 | `--results_filename`| String | Path to save the results. | `results` |
+
 
 **Example**:
 > ```console
-> cnn-vit resnet50 --results_filename results
+> cnn-vit resnet50 --num_epochs 20
 > ``` 
 
 [**Return**](#overview)
