@@ -3,7 +3,7 @@ import subprocess, os, warnings, sys
 
 if __name__ == '__main__':
 
-    results_folder = 'results'
+    results_folder = 'results_test'
     try:
         os.makedirs(results_folder)
     except OSError:
@@ -17,6 +17,7 @@ if __name__ == '__main__':
             sys.executable, 'main.py', config_arch,
             '--results_filename', os.path.join(results_folder, 'results_vit') if config_arch == 'vit' \
                 else os.path.join(results_folder, 'results_not_vit'),
-            '--num_epochs', '1'
+            '--num_epochs', '1',
+            '--data_folder', 'example-data'
         ]
         subprocess.run(command)
