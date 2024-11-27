@@ -37,7 +37,8 @@
 
 ##  Overview
 
-The CNN-ViT project compares multiple cnn and transformer-based models including VGG, ResNet, ViT and MobileViT on a small data set with 2 thousand images. We found that 1, ViT' performance on this small data set is unfavourable with accuracy less 0.3; 2, MobileViT_xxs can improve accuracy but the performance is still worse than CNN.
+The CNN-ViT project compares multiple cnn and transformer-based models including VGG, ResNet, ViT and MobileViT on a small data set with 2 thousand images. We found that - 1, ViT's performance on this small data set, what ever the depth, heads, and dimensions, is unfavourable, with accuracy less 0.3; 2, MobileViT_xxs can improve accuracy but the performance is still worse than CNN.
+All these demonstrate the importance of the inducive bais introduced by convolution.
 
 This project implements ViT and MobileViT from scratch, both of with are compatible with **graph execution mode** in tensorflow.
 
