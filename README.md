@@ -2,12 +2,13 @@
     <h1 align="center">CNN-VIT</h1>
 </p>
 <p align="center">
-    <em>CLT of CNN and ViT on a small data set.</em>
+    <em>Docker for training CNN and ViT on a small data set.</em>
 </p>
 <p align="center">
 		<em>Developed with the software and tools below.</em>
 </p>
 <p align="center">
+    <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=Docker&logoColor=white" alt="Docker Badge">
 	<img src="https://img.shields.io/badge/TensorFlow-FF6F00.svg?style=default&logo=TensorFlow&logoColor=white" alt="TensorFlow">
 	<img src="https://img.shields.io/badge/scikit--learn-F7931E.svg?style=flat&logo=scikit-learn&logoColor=white" alt="scikit-learn">
 	<img src="https://img.shields.io/badge/Python-3776AB.svg?style=default&logo=Python&logoColor=white" alt="Python">
@@ -25,9 +26,9 @@
    - [Data Structure](#data-structure)
 - [Modules](#modules)
 - [Getting Started](#getting-started)
-   - [Installation](#installation)
-   - [Data](#data-1)
-   - [Usage](#usage)
+   - [Get the Image](#get-the-image)
+   - [Run the Container](#run-the-container)
+   - [Command Line Arguments](#command-line-arguments)
 </details>
 <hr>
 
@@ -52,13 +53,13 @@ This project implements ViT and MobileViT from scratch, both of with are compati
     │   └── TQ
     ├── config.py
     ├── data.py
+    ├── Dockerfile
     ├── main.py
     ├── models/
     │   ├── __init__.py
     │   ├── mobileViT.py
     │   └── models.py
-    ├── requirements.txt
-    └── setup.py
+    └── requirements.txt
 ```
 ---
 
@@ -90,9 +91,9 @@ Some example images have already been placed in this folder.
 | ---                                  | --- |
 | [config.py](config.py)               | Defines configurations for different architectures of the MobileViT model, allowing customization of parameters such as number of classes, image size, and dropout rates to adapt to various image classification tasks within the CNN-ViT projects architecture.                                                                              |
 | [data.py](data.py)                   | DataLoader in CNN-ViT manages image dataset preprocessing by loading, normalizing, and partitioning data into training and testing sets, supporting image resizing and format adjustments for model compatibility, and including functionality for data shuffling.                                |
+| [Dockerfile](Dockerfile)     | Dockerfile to build the image. |
 | [main.py](main.py)                   | `main.py` organizes the model training and evaluation pipeline including configuration, data loading, training, and evaluation of various neural network models including MobileViT, VGG, ResNet, and Vision Transformer.           |
 | [requirements.txt](requirements.txt) | Contains the depandencies of the project.|
-| [setup.py](setup.py)     | Some setup for this command line tool.|
 
 </details>
 
@@ -109,65 +110,61 @@ Some example images have already been placed in this folder.
 
 ##  Getting Started
 
-**System Requirements:**
+### Get the Image
 
-* **Python**: `3.10.4`
+<h4>Build from <code>source</code></h4>
 
-### Installation
-
-<h4>From <code>source</code></h4>
-
-> 1. Create a virtual environment:
->
-> Windows:
-> ```console
-> py -3.10 -m venv cnn-vit-venv
-> cnn-vit-venv\Scripts\activate
-> ```
->
-> Linux:
-> ```console
-> python3.10 -m venv cnn-vit-venv
-> source cnn-vit-venv/bin/activate
-> ```
->
-> 2. Clone the repository:
+> 1. Clone the repository:
 >
 > ```console
-> git clone -b clt https://github.com/kangchengX/CNN-ViT.git
+> git clone -b docker https://github.com/kangchengX/CNN-ViT.git
 > ```
 >
-> 3. Change to the project directory:
-> ```console
-> cd CNN-ViT
-> ```
+> 2. Build image:
 >
-> 4. Install the dependencies:
 > ```console
-> pip install -r requirements.txt
-> ```
->
-> 5. Build CLT:
-> ```console
-> python setup.py develop
+> docker build -t cnn-vit .
 > ```
 
-### Data
-
-Put the data folder with the structure described in the above section [Data](#data). Some example images are already placed in the `data` folder.
-
-###  Usage
+<h4>Or pull the image</h4>
 
 > ```console
-> cnn-vit [config_arch] [OPTIONS]
+> docker pull kangchengx/cnn-vit:latest
 > ```
 
-**For help**:
+### Run the Container
+
+<h4>For help (default)</h4>
+
 > ```console
-> cnn-vit --help
+> docker run cnn-vit
 > ```
 
-**Command Line Arguments**:
+<h4>Test training a model</h4>
+
+> ```console
+> docker run cnn-vit resnet18 --num_epochs=1
+> ```
+
+<h4>Inspect results on host</h4>
+
+> ```console
+> docker run -v $(pwd)/results:/app/results cnn-vit resnet18 --num_epochs=1 --results_filename=results/results.json
+> ```
+
+Explanation: ```$(pwd)/results``` is the directory (absolute path) on the host, ```/app/results``` is the directory inside the container (absolute path). The work dir is ```/app```, and ```results/results.json``` is the relative path. Therefore, the absolute directory of the ```results.json``` is ```/app/results/```, which the directory on the host needs to be mapped to.
+
+<h4>Inspect results on host and send data</h4>
+
+> ```console
+> docker run -v $(pwd)/results:/app/results -v $(pwd)/data:/app/data cnn-vit resnet18 --results_filename=results/results.json
+> ```
+
+Where the ```/data``` directory lies in the currect working directory on the host. It must has the same structure as described in [data](#data) section.
+
+###  Command Line Arguments
+
+All these are put after ```cnn-vit```.
 
 | Argument | Type | Description | Default Value |
 |--------|------|-------------|---------------|
@@ -189,12 +186,6 @@ Put the data folder with the structure described in the above section [Data](#da
 | `--batch_size`     | Integer | Batch size. | `16` |
 | `--learning_rate`  | Float | Learning rate. | `1e-6` |
 | `--results_filename`| String | Path to save the results. | `results` |
-
-
-**Example**:
-> ```console
-> cnn-vit resnet50 --num_epochs 20
-> ``` 
 
 [**Return**](#overview)
 
