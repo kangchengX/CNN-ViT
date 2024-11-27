@@ -2,7 +2,7 @@
     <h1 align="center">CNN-VIT</h1>
 </p>
 <p align="center">
-    <em>Comparison of CNN and ViT on a small data set.</em>
+    <em>Comparison of CNN and ViT on a small cultural relic data set.</em>
 </p>
 <p align="center">
 		<em>Developed with the software and tools below.</em>
@@ -37,7 +37,7 @@
 
 ##  Overview
 
-The CNN-ViT project compares multiple cnn and transformer-based models including VGG, ResNet, ViT and MobileViT on a small data set with 2 thousand images. We found that - 1, ViT's performance on this small data set, what ever the depth, heads, and dimensions, is unfavourable, with accuracy less 0.3; 2, MobileViT_xxs can improve accuracy but the performance is still worse than CNN.
+The CNN-ViT project compares multiple cnn and transformer-based models including VGG, ResNet, ViT and MobileViT on a small cultrual relic data set with 2 thousand images, each labeled with the material type of the cultural relics. We found that - 1, Without wavelet decomposition, these images are hard to classify by the models; 2, ViT's performance on this small data set, what ever the depth, heads, and dimensions, is unfavourable, with accuracy less 0.3; and 3, MobileViT_xxs can improve accuracy but the performance is still worse than CNN.
 All these demonstrate the importance of the inducive bais introduced by convolution.
 
 This project implements ViT and MobileViT from scratch, both of with are compatible with **graph execution mode** in tensorflow.
@@ -45,6 +45,7 @@ This project implements ViT and MobileViT from scratch, both of with are compati
 ---
 
 ##  Results
+Note: All the images are preprocessed with wavelet decomposition.
 **On training data set:**
 All the models are trained with the same learning rate, batch size and number of epochs
 <img src="for-readme/losses and accuracies.png" alt="losses-accuracies-train">
@@ -87,7 +88,8 @@ All the models are trained with the same learning rate, batch size and number of
     ├── main.py
     ├── README.md
     ├── requirements.txt
-    └── test.py
+    ├── test.py
+    └── wavelet.py
 ```
 ---
 
@@ -107,6 +109,8 @@ The data must hold the following structure and is put in the project folder `CNN
 ```
 , i.e., the data folder, (in this case, it has a name `data`) has child folders with class names as names, each of which contains the images of the correponding class.
 
+The data could be processed with wavelet decomposition. To do this, put the original data in the `data_old` folder and run [wavelet.py](wavelet.py).
+
 ### Data Sources
 The data used in this project is collected from Palace Museum, Taipei, which contains 4 classes with 2000 around images of cultural relics.
 
@@ -124,6 +128,7 @@ The data used in this project is collected from Palace Museum, Taipei, which con
 | [main.py](main.py)                   | `main.py` organizes the model training and evaluation pipeline including configuration, data loading, training, and evaluation of various neural network models including MobileViT, VGG, ResNet, and Vision Transformer. |
 | [requirements.txt](requirements.txt) | Contains the depandencies of the project.|
 | [test.py](test.py) | A script to test the repo. |
+| [wavelet.py](wavelet.py) | A script to perform wavelet decomposition on the images. |
 | [example-data](example-data/) | Contains example images. |
 | [for-readme](for-readme/) | Contains support files for `README.md`. |
 | [models](models/) | Contains scripts defining modules and models. See details below. |
